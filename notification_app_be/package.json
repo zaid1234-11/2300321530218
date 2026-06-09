@@ -9,10 +9,11 @@
     "dev": "tsx watch index.ts"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "typescript": "^5.4.0"
   },
   "devDependencies": {
-    "tsx": "^4.7.0",
-    "@types/node": "^20.11.0"
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0"
   }
 }

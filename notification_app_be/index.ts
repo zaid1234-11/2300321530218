@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { logMessage } from '../logging_middleware/logger';
 
 type NotificationType = 'Placement' | 'Result' | 'Event';
@@ -16,11 +17,17 @@ const weights: Record<NotificationType, number> = {
   'Event': 1
 };
 
+const API_TOKEN = process.env.API_TOKEN || '';
+
 async function getTop10Notifications() {
   const url = 'http://4.224.186.213/evaluation-service/notifications';
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_TOKEN}`
+      }
+    });
     if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
 
     const data = await res.json();
