@@ -1,0 +1,6 @@
+/* Base reset — all primary styles handled in App.css and MUI ThemeProvider */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
