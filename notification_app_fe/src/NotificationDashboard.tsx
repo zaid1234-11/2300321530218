@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert, AppBar, Box, Button, Chip, CircularProgress, Container,
   FormControl, InputLabel, List, ListItem, ListItemText, MenuItem,
-  Paper, Select, Stack, Toolbar, Typography,
+  Paper, Select, Stack, TextField, Toolbar, Typography,
 } from '@mui/material';
 
 type NotificationType = 'Placement' | 'Result' | 'Event';
@@ -73,6 +73,23 @@ function getSavedToken() {
     || API_TOKEN;
 }
 
+function extractAccessToken(value: string) {
+  const trimmedValue = value.trim();
+
+  try {
+    const parsed = JSON.parse(trimmedValue);
+    if (typeof parsed.access_token === 'string') {
+      return parsed.access_token;
+    }
+  } catch {
+    // Plain token input is expected most of the time.
+  }
+
+  return trimmedValue.toLowerCase().startsWith('bearer ')
+    ? trimmedValue.slice(7).trim()
+    : trimmedValue;
+}
+
 export default function NotificationDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [view, setView] = useState<PageView>(getRoute);
@@ -81,6 +98,8 @@ export default function NotificationDashboard() {
   const [loading, setLoading] = useState(true);
   const [read, setRead] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [tokenInput, setTokenInput] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem(READ_KEY);
@@ -129,7 +148,7 @@ export default function NotificationDashboard() {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [page, typeFilter, view]);
+  }, [page, typeFilter, view, refreshKey]);
 
   function markAsRead(id: string) {
     if (!read.includes(id)) {
@@ -142,6 +161,16 @@ export default function NotificationDashboard() {
   function changeView(nextView: PageView) {
     setPage(1);
     window.location.hash = nextView === 'priority' ? '#/priority' : '#/notifications';
+  }
+
+  function saveAccessToken() {
+    const token = extractAccessToken(tokenInput);
+    if (!token) return;
+
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    setTokenInput('');
+    setPage(1);
+    setRefreshKey(current => current + 1);
   }
 
   const priorityItems = notifications
@@ -203,10 +232,27 @@ export default function NotificationDashboard() {
             </FormControl>
           </Stack>
 
-          {!getSavedToken() && (
-            <Alert severity="warning">
-              Paste your access token in localStorage as auth_token or access_token, then refresh.
-            </Alert>
+          {(!getSavedToken() || error.includes('401')) && (
+            <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+              <Stack spacing={2}>
+                <Alert severity={error.includes('401') ? 'error' : 'warning'}>
+                  Paste a fresh access token below. The app saves it as access_token and uses it in the Authorization header.
+                </Alert>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Access token"
+                    value={tokenInput}
+                    onChange={(event) => setTokenInput(event.target.value)}
+                    placeholder="Paste access_token or full auth JSON"
+                  />
+                  <Button variant="contained" onClick={saveAccessToken} disabled={!tokenInput.trim()}>
+                    Save Token
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
           )}
 
           {error && <Alert severity="error">{error}</Alert>}
