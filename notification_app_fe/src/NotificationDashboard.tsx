@@ -26,6 +26,7 @@ const chipColors: Record<NotificationType, 'error' | 'warning' | 'info'> = {
 };
 
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
+const AUTH_TOKEN_KEY = 'auth_token';
 
 export default function NotificationDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -44,10 +45,13 @@ export default function NotificationDashboard() {
 
   // fetch notifications
   useEffect(() => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY) || API_TOKEN;
+
     setLoading(true);
     fetch('http://4.224.186.213/evaluation-service/notifications', {
       headers: {
-        'Authorization': `Bearer ${API_TOKEN}`
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
       }
     })
       .then(res => res.json())
