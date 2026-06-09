@@ -59,6 +59,13 @@ function sortByPriority(a: Notification, b: Notification) {
   return new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime();
 }
 
+function buildAuthHeader(token: string) {
+  const trimmedToken = token.trim();
+  return trimmedToken.toLowerCase().startsWith('bearer ')
+    ? trimmedToken
+    : `Bearer ${trimmedToken}`;
+}
+
 export default function NotificationDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [view, setView] = useState<PageView>(getRoute);
@@ -97,7 +104,7 @@ export default function NotificationDashboard() {
     fetch(buildUrl(requestPage, requestLimit, typeFilter), {
       signal: controller.signal,
       headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(token ? { 'Authorization': buildAuthHeader(token) } : {}),
         'Content-Type': 'application/json',
       }
     })
