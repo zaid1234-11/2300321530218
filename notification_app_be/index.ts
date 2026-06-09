@@ -10,17 +10,11 @@ interface Notification {
   Timestamp: string;
 }
 
-// priority weights - placement is most important, event is least
-const weights: Record<NotificationType, number> = {
-  'Placement': 3,
-  'Result': 2,
-  'Event': 1
-};
-
 const API_TOKEN = process.env.API_TOKEN || '';
+const BASE_URL = 'http://20.244.56.144/evaluation-service';
 
-async function getTop10Notifications() {
-  const url = 'http://4.224.186.213/evaluation-service/notifications';
+async function getNotifications() {
+  const url = `${BASE_URL}/notifications`;
 
   try {
     const res = await fetch(url, {
@@ -33,17 +27,8 @@ async function getTop10Notifications() {
     const data = await res.json();
     const notifications: Notification[] = data.notifications || [];
 
-    // sort by priority weight first, then by newest timestamp
-    notifications.sort((a, b) => {
-      const wA = weights[a.Type] || 0;
-      const wB = weights[b.Type] || 0;
-      if (wB !== wA) return wB - wA;
-      return new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime();
-    });
-
-    const top10 = notifications.slice(0, 10);
-    logMessage('info', `Got ${top10.length} priority notifications`);
-    return top10;
+    logMessage('info', `Got ${notifications.length} notifications`);
+    return notifications;
 
   } catch (err: any) {
     logMessage('error', `Failed to fetch: ${err.message}`);
@@ -53,6 +38,6 @@ async function getTop10Notifications() {
 
 // main
 (async () => {
-  const results = await getTop10Notifications();
+  const results = await getNotifications();
   logMessage('info', JSON.stringify(results, null, 2));
 })();

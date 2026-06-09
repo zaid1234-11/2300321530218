@@ -7,7 +7,6 @@ import {
 
 type NotificationType = 'Placement' | 'Result' | 'Event';
 type TypeFilter = 'all' | NotificationType;
-type PageView = 'notifications' | 'priority';
 
 interface Notification {
   ID: string;
@@ -15,12 +14,6 @@ interface Notification {
   Message: string;
   Timestamp: string;
 }
-
-const weights: Record<NotificationType, number> = {
-  'Placement': 3,
-  'Result': 2,
-  'Event': 1,
-};
 
 const chipColors: Record<NotificationType, 'error' | 'warning' | 'info'> = {
   'Placement': 'error',
@@ -34,12 +27,6 @@ const ACCESS_TOKEN_KEY = 'access_token';
 const READ_KEY = 'readNotifs';
 const API_URL = 'http://4.224.186.213/evaluation-service/notifications';
 const PAGE_SIZE = 10;
-const PRIORITY_LIMIT = 10;
-const PRIORITY_FETCH_LIMIT = 50;
-
-function getRoute(): PageView {
-  return window.location.hash === '#/priority' ? 'priority' : 'notifications';
-}
 
 function buildUrl(page: number, limit: number, notificationType: TypeFilter) {
   const params = new URLSearchParams({
@@ -52,12 +39,6 @@ function buildUrl(page: number, limit: number, notificationType: TypeFilter) {
   }
 
   return `${API_URL}?${params.toString()}`;
-}
-
-function sortByPriority(a: Notification, b: Notification) {
-  const priorityDiff = (weights[b.Type] || 0) - (weights[a.Type] || 0);
-  if (priorityDiff !== 0) return priorityDiff;
-  return new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime();
 }
 
 function buildAuthHeader(token: string) {
@@ -75,7 +56,6 @@ function getSavedToken() {
 
 export default function NotificationDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [view, setView] = useState<PageView>(getRoute);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -94,16 +74,8 @@ export default function NotificationDashboard() {
   }, []);
 
   useEffect(() => {
-    const onHashChange = () => setView(getRoute());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
-  useEffect(() => {
     const controller = new AbortController();
     const token = getSavedToken();
-    const requestPage = view === 'priority' ? 1 : page;
-    const requestLimit = view === 'priority' ? PRIORITY_FETCH_LIMIT : PAGE_SIZE;
 
     setLoading(true);
     setError('');
@@ -114,7 +86,7 @@ export default function NotificationDashboard() {
       return () => controller.abort();
     }
 
-    fetch(buildUrl(requestPage, requestLimit, typeFilter), {
+    fetch(buildUrl(page, PAGE_SIZE, typeFilter), {
       signal: controller.signal,
       headers: {
         ...(token ? { 'Authorization': buildAuthHeader(token) } : {}),
@@ -135,7 +107,7 @@ export default function NotificationDashboard() {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [page, typeFilter, view]);
+  }, [page, typeFilter]);
 
   function markAsRead(id: string) {
     if (!read.includes(id)) {
@@ -145,22 +117,7 @@ export default function NotificationDashboard() {
     }
   }
 
-  function changeView(nextView: PageView) {
-    setPage(1);
-    window.location.hash = nextView === 'priority' ? '#/priority' : '#/notifications';
-  }
-
-  const priorityItems = notifications
-    .filter(notification => !read.includes(notification.ID))
-    .sort(sortByPriority)
-    .slice(0, PRIORITY_LIMIT);
-  const visibleItems = view === 'priority' ? priorityItems : notifications;
-  const hasNextPage = view === 'notifications' && notifications.length === PAGE_SIZE;
-
-  const title = view === 'priority' ? 'Priority Inbox' : 'All Notifications';
-  const subtitle = view === 'priority'
-    ? 'Top 10 unread notifications ranked by Placement, Result, Event, then newest first.'
-    : 'Browse every campus notification from the protected API.';
+  const hasNextPage = notifications.length === PAGE_SIZE;
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f4f6f8' }}>
@@ -169,45 +126,19 @@ export default function NotificationDashboard() {
           <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
             Campus Notification Portal
           </Typography>
-          <Button color="inherit" variant={view === 'notifications' ? 'outlined' : 'text'} onClick={() => changeView('notifications')}>
-            All
-          </Button>
-          <Button color="inherit" variant={view === 'priority' ? 'outlined' : 'text'} onClick={() => changeView('priority')}>
-            Priority
-          </Button>
         </Toolbar>
       </AppBar>
 
       <Container maxWidth="md" sx={{ py: { xs: 3, sm: 5 } }}>
         <Stack spacing={3}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>
-                {title}
-              </Typography>
-              <Typography color="text.secondary">
-                {subtitle}
-              </Typography>
-            </Box>
-
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="notification-type-label">Type</InputLabel>
-              <Select
-                labelId="notification-type-label"
-                value={typeFilter}
-                label="Type"
-                onChange={(event) => {
-                  setTypeFilter(event.target.value as TypeFilter);
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="all">All types</MenuItem>
-                <MenuItem value="Placement">Placement</MenuItem>
-                <MenuItem value="Result">Result</MenuItem>
-                <MenuItem value="Event">Event</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>
+              All Notifications
+            </Typography>
+            <Typography color="text.secondary">
+              Browse every campus notification from the protected API.
+            </Typography>
+          </Box>
 
           {!getSavedToken() && (
             <Alert severity="warning">
@@ -224,15 +155,12 @@ export default function NotificationDashboard() {
               </Box>
             ) : (
               <List disablePadding>
-                {visibleItems.length === 0 ? (
+                {notifications.length === 0 ? (
                   <ListItem sx={{ py: 4 }}>
-                    <ListItemText
-                      primary="No notifications found."
-                      secondary={view === 'priority' ? 'Read notifications are hidden from Priority Inbox.' : undefined}
-                    />
+                    <ListItemText primary="No notifications found." />
                   </ListItem>
                 ) : (
-                  visibleItems.map(notification => {
+                  notifications.map(notification => {
                     const unread = !read.includes(notification.ID);
                     return (
                       <ListItem
@@ -269,17 +197,15 @@ export default function NotificationDashboard() {
             )}
           </Paper>
 
-          {view === 'notifications' && (
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Button variant="outlined" disabled={page === 1 || loading} onClick={() => setPage(current => Math.max(1, current - 1))}>
-                Previous
-              </Button>
-              <Typography color="text.secondary">Page {page}</Typography>
-              <Button variant="contained" disabled={!hasNextPage || loading} onClick={() => setPage(current => current + 1)}>
-                Next
-              </Button>
-            </Stack>
-          )}
+          <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', alignItems: 'center' }}>
+            <Button variant="outlined" disabled={page === 1 || loading} onClick={() => setPage(current => Math.max(1, current - 1))}>
+              Previous
+            </Button>
+            <Typography color="text.secondary">Page {page}</Typography>
+            <Button variant="contained" disabled={!hasNextPage || loading} onClick={() => setPage(current => current + 1)}>
+              Next
+            </Button>
+          </Stack>
         </Stack>
       </Container>
     </Box>
