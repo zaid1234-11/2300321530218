@@ -30,6 +30,7 @@ const chipColors: Record<NotificationType, 'error' | 'warning' | 'info'> = {
 
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 const AUTH_TOKEN_KEY = 'auth_token';
+const ACCESS_TOKEN_KEY = 'access_token';
 const READ_KEY = 'readNotifs';
 const API_URL = 'http://4.224.186.213/evaluation-service/notifications';
 const PAGE_SIZE = 10;
@@ -66,6 +67,12 @@ function buildAuthHeader(token: string) {
     : `Bearer ${trimmedToken}`;
 }
 
+function getSavedToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY)
+    || localStorage.getItem(ACCESS_TOKEN_KEY)
+    || API_TOKEN;
+}
+
 export default function NotificationDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [view, setView] = useState<PageView>(getRoute);
@@ -94,7 +101,7 @@ export default function NotificationDashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const token = localStorage.getItem(AUTH_TOKEN_KEY) || API_TOKEN;
+    const token = getSavedToken();
     const requestPage = view === 'priority' ? 1 : page;
     const requestLimit = view === 'priority' ? PRIORITY_FETCH_LIMIT : PAGE_SIZE;
 
@@ -196,9 +203,9 @@ export default function NotificationDashboard() {
             </FormControl>
           </Stack>
 
-          {!localStorage.getItem(AUTH_TOKEN_KEY) && !API_TOKEN && (
+          {!getSavedToken() && (
             <Alert severity="warning">
-              Paste your access token in localStorage as auth_token, then refresh.
+              Paste your access token in localStorage as auth_token or access_token, then refresh.
             </Alert>
           )}
 
